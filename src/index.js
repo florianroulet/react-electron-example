@@ -2,6 +2,9 @@ import React from 'react';
 import ReactDOM from 'react-dom';
 import './index.css';
 
+const Store = require('electron-store');
+const store = new Store();
+
 class Square extends React.Component {
     render() {
         let classes = "square " + this.props.bgColor;
@@ -14,6 +17,16 @@ class Square extends React.Component {
             </button>
         );
     }
+}
+
+class GameHistory extends React.Component {
+    render() {
+        const gameHistory = this.props.gameHistory || [];
+        let games = gameHistory.map((item, index) => {
+           return (<li key={index} onClick={() => this.props.onClick(index)}>{index}</li>);
+        });
+        return (<ul>{games}</ul>);
+    };
 }
 
 class Board extends React.Component {
@@ -67,7 +80,17 @@ class Game extends React.Component {
         });
     }
 
-    handleClick(i) {
+    handleGameHistoryClick(i) {
+        let game = this.state.gameHistory.history[i];
+
+        this.setState({
+            history: game.history,
+            stepNumber: game.stepNumber,
+            xIsNext: game.xIsNext
+        });
+    }
+
+    handleMoveHistoryClick(i) {
         const history = this.state.history.slice(0, this.state.stepNumber + 1);
         const current = history[history.length - 1];
         const squares = current.squares.slice();
@@ -101,10 +124,11 @@ class Game extends React.Component {
                 </li>
             );
         });
-
+        let gameHistory = this.state.gameHistory;
         let status;
         if (result) {
             status = 'Winner: ' + result.winner;
+            store.set("gameHistory", JSON.stringify({history: (gameHistory.history ? gameHistory.history : []).concat([this.state])}));
         } else if (this.state.history.length === 10) {
             status = 'Draw';
         } else {
@@ -118,7 +142,7 @@ class Game extends React.Component {
                     <Board
                         squares={current.squares}
                         winningPositions={winningPositions}
-                        onClick={(i) => this.handleClick(i)}
+                        onClick={(i) => this.handleMoveHistoryClick(i)}
                     />
                 </div>
                 <div className="game-info">
@@ -129,6 +153,9 @@ class Game extends React.Component {
                         </li>
                         {moves}
                     </ol>
+                </div>
+                <div>
+                    <GameHistory gameHistory={gameHistory.history} onClick={(i) => this.handleGameHistoryClick(i)}/>
                 </div>
             </div>
         );
@@ -178,6 +205,9 @@ function calculatePosition(i) {
 }
 
 function defaultState() {
+    if (window && store && !store.get("gameHistory")) {
+        store.set("gameHistory", JSON.stringify({history: null}));
+    }
     return {
         history: [{
             squares: Array(9).fill(null),
@@ -185,5 +215,6 @@ function defaultState() {
         }],
         stepNumber: 0,
         xIsNext: true,
+        gameHistory: JSON.parse(store.getItem("gameHistory"))
     };
 }
